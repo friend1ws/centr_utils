@@ -79,7 +79,7 @@ class Monomers(object):
         idt_out_clusters = []
         cluster_id = 0
         self.cluster_list = []
-        clusterd_monomer_count = 0
+        clustered_monomer_count = 0
         clustered_monomer_len = 0
         # self.cluster_count = 0
         # Run over each monomer pair in aln_data to cluster monomers.
@@ -97,7 +97,7 @@ class Monomers(object):
             # Run over all nodes (monomers) in cluster.
             tcluster = Cluster(cluster_id)
             tcluster.symbol = chr(65 + cluster_id)
-            self.cluster_list.append(tcluster_id)
+            self.cluster_list.append(tcluster)
             for idx in C:
                 mono = self.monomer_list[idx]
                 mono.cluster_id = cluster_id
@@ -112,8 +112,10 @@ class Monomers(object):
                 cluster_id = cluster_id + 1
 
         self.cluster_count = cluster_id
-        self.mean_identity_within_clusters = statistics.mean(idt_in_clusters)
-        self.mean_identity_between_clusters = statistics.mean(idt_out_clusters)
+        if len(idt_in_clusters) > 0: 
+            self.mean_identity_within_clusters = statistics.mean(idt_in_clusters)
+        if len(idt_out_clusters) > 0:
+            self.mean_identity_between_clusters = statistics.mean(idt_out_clusters)
 
         self.clustered_monomer_count = clustered_monomer_count
         self.clustered_monomer_len = clustered_monomer_len
@@ -141,47 +143,56 @@ class Monomers(object):
         # assume monomer_list are sorted by the coordinate of start position
         start_list_clustered = []
         end_list_clustered = []
-        for mono in monomer_list:
-            if mono.clustered_id is not None:
+        for mono in self.monomer_list:
+            if mono.cluster_id is not None:
                 start_list_clustered.append(mono.start)
                 end_list_clustered.append(mono.end)
 
-        head_to_tail_intervals = start_list_clustered[1:] - end_list_clustered[:-1] - 1
-   
-        self.min_head_to_tail = min(head_to_tail_intervals)
-        self.max_head_to_tail = max(head_to_tail_intervals)
-        self.median_head_to_tail = statistics.median(head_to_tail_intervals)
-        self.max_abs_head_to_tail = max(abs(head_to_tail_intervals))
+        head_to_tail_intervals = []
+        for i in range(1, len(start_list_clustered)):
+            head_to_tail_intervals.append(start_list_clustered[i] - end_list_clustered[i - 1] - 1)
+        # head_to_tail_intervals = start_list_clustered[1:] - end_list_clustered[:-1] - 1
+  
+        # import pdb; pdb.set_trace() 
+        if len(head_to_tail_intervals) > 0:
+            self.min_head_to_tail = min(head_to_tail_intervals)
+            self.max_head_to_tail = max(head_to_tail_intervals)
+            self.median_head_to_tail = statistics.median(head_to_tail_intervals)
+            self.max_abs_head_to_tail = max([abs(x) for x in head_to_tail_intervals])
 
     
     def set_monomer_period_stat(self):
 
         # assume monomer_list are sorted by the coordinate of start position
         cid2start = {}
-        for mono in monomer_list:
-            if mono.clustered_id is not None:
-                if cid not in cid2start: cid2start = []
-                cid2start[mono.clustered_id].append(mono.start)
+        for mono in self.monomer_list:
+            if mono.cluster_id is not None:
+                if mono.cluster_id not in cid2start: cid2start[mono.cluster_id] = []
+                cid2start[mono.cluster_id].append(mono.start)
 
         all_monomer_periods = []
         for cid in sorted(cid2start):
-            monomer_periods = cid2start[cid][1:] - cid2start[cid][:-1]
+            monomer_periods = []
+            for i in range(1, len(cid2start[cid])):
+                monomer_periods.append(cid2start[cid][i] - cid2start[cid][i - 1])
+            # monomer_periods = cid2start[cid][1:] - cid2start[cid][:-1]
             all_monomer_periods.extend(monomer_periods)
 
-        self.min_monomer_period = min(all_monomer_periods)
-        self.max_monomer_period = max(all_monomer_periods)
-        self.median_monomer_period = statistics.median(all_monomer_periods)
+        if len(all_monomer_periods) > 0:
+            self.min_monomer_period = min(all_monomer_periods)
+            self.max_monomer_period = max(all_monomer_periods)
+            self.median_monomer_period = statistics.median(all_monomer_periods)
 
-        # Normalize monomer periods by the median.
-        if self.median_monomer_period > 0:
-            self.normalized_min_monomer_period = \
-                self.min_monomer_period / self.median_monomer_period
-            self.normalized_max_monomer_period = \
-                self.max_monomer_period / self.median_monomer_period
-        else:
-            # Assign two out-of-range numbers if median is zero.
-            self.normalized_min_monomer_period = 0
-            self.normalized_max_monomer_period = 2
+            # Normalize monomer periods by the median.
+            if self.median_monomer_period > 0:
+                self.normalized_min_monomer_period = \
+                    self.min_monomer_period / self.median_monomer_period
+                self.normalized_max_monomer_period = \
+                    self.max_monomer_period / self.median_monomer_period
+            else:
+                # Assign two out-of-range numbers if median is zero.
+                self.normalized_min_monomer_period = 0
+                self.normalized_max_monomer_period = 2
 
         """
         HOR_start = min(range_list)

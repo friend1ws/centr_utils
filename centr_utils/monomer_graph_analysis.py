@@ -100,120 +100,18 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
         monomers.sort_monomer()
         monomers.set_monomer_stat()
         monomers.comp_monomers()
+        monomers.inversion_check()
 
-        """
-            mono_range = monomers[i][0]
-            # Add up app monomer ranges to calculate total monomer content in read
-            total_monomer_len += (mono_range[1] - mono_range[0])
-            # Store start-end coordinates of the monomer.
-            range_list.append(mono_range[0])
-            range_list.append(mono_range[1])
-        """
-
-        """
-        is_regular = False
-        inversion_detected = False
-        missing_monomer = False
-
-
-        # SCAN THE READ FOR AN HOR AT MULTIPLE CLUSTERING THRESHOLDS #
         for threshold in thres_list:
-            G = nx.Graph()
-            idt_in_clusters = []
-            idt_out_clusters = []
-            # Run over each monomer pair in aln_data to cluster monomers.
-            for i, j, idt in aln_data:
-                # Connect monomers i and j, if score is larger than threshold.
-                # Monomers in the same cluster are treated as the same kind.
-                if idt >= threshold:
-                    G.add_edge(i, j)
-                    idt_in_clusters.append(idt)
-                else:
-                    idt_out_clusters.append(idt)
+            monomers.cluster_monomers(threshold)
+            monomers.set_head_to_tail_stat()
+            monomers.set_monomer_period_stat()
 
-            cluster_count = 0
-            data = []
-            data_c = {}
-            l_seq = len(seq_db[rid])
-            forward = False
-            reverse = False
-
-            # Check if monomers in either orientation exist in the read.
-            for mono in monomers:
-                orientation = mono[2]
-                if orientation == "F":
-                    forward = True
-                else:
-                    reverse = True
-            # Mark read as INVERTED if monomers in both orientations exist.
-            if forward and reverse:
-                inversion_detected = True
-
-            # Run over all clusters
-            for C in nx.connected_components(G):
-                # Run over all nodes (monomers) in cluster.
-                for idx in C:
-                    s, e = monomers[idx][0]
-                    # Store (monomer_start, end, cluster_index) in 'data.'
-                    # Store (monomer_start, cluster_index) in 'data_c.'
-                    data.append((s, e, cluster_count))
-                    data_c.setdefault(cluster_count, [])
-                    data_c[cluster_count].append((s, cluster_count))
-                cluster_count += 1
-
-            if cluster_count <= 1 and not inversion_detected:
-                # No or only one cluster. No HOR detected.\
-                # Test with a different threshold.
-                continue
-
-            # Analyze clusters, if more than one detected.
-            if cluster_count > 1:
-                # Sort detected monomers by their coordinates.
-                data.sort()
-                # Create a symbolic HOR pattern, i.e., ABCDABCDABCD
-                symbolic_pattern = ""
-                for s, e, c in data:
-                    symbolic_pattern += chr(65 + c)
-
-                # Calculate head-to-tail distances between clustered monomers.
-                x, e, y = zip(*data)
-                x = np.array(x)
-                head_to_head_intervals = x[1:] - x[:-1]
-                head_to_tail_intervals = x[1:] - e[:-1] - 1
-
-                # Calculate intervals between monomers in the same cluster
-                c_intervals = []
-                all_monomer_periods = []
-                for c_index in data_c:
-                    x = np.array([c[0] for c in data_c[c_index]])
-                    x.sort()
-                    # Periods: intervals between monomers of the same type
-                    monomer_periods = x[1:] - x[:-1]
-                    all_monomer_periods.extend(monomer_periods)
-
-                min_monomer_period = min(all_monomer_periods)
-                max_monomer_period = max(all_monomer_periods)
-                median_monomer_period = round(np.median(all_monomer_periods))
-                min_head_to_tail = min(head_to_tail_intervals)
-                max_head_to_tail = max(head_to_tail_intervals)
-                median_head_to_tail = round(np.median(head_to_tail_intervals))
-                max_abs_head_to_tail = max(abs(head_to_tail_intervals))
-                isolate_count = len(monomers) - len(data)
-                HOR_start = min(range_list)
-                HOR_end = max(range_list)
-                monomeric_fraction_in_HOR = \
-                    1.0*total_monomer_len/(HOR_end - HOR_start)
-
-                # Normalize monomer periods by the median.
-                if median_monomer_period > 0:
-                    normalized_min_monomer_period = \
-                        min_monomer_period/median_monomer_period
-                    normalized_max_monomer_period = \
-                        max_monomer_period/median_monomer_period
-                else:
-                    # Assign two out-of-range numbers if median is zero.
-                    normalized_min_monomer_period = 0
-                    normalized_max_monomer_period = 2
+            """
+            is_regular = False
+            inversion_detected = False
+            missing_monomer = False
+            """
 
             # Exit the threshold loop if regularity, inversion or 
             # missing monomer detected.
