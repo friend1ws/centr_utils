@@ -1,2 +1,2 @@
 # centr_utils
-utilities for centromere analysis
+Utilities for centromere analysis based on [alpha-CENTAURI](https://github.com/volkansevim/alpha-CENTAURI).
