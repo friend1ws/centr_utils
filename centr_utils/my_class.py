@@ -44,6 +44,19 @@ class Monomers(object):
         self.monomer_list.append(monomer)
 
 
+    def sort_monomer(self):
+        monomer_list = self.monomer_list
+        self.monomer_list = sorted(monomer_list, key = lambda x:x.start)
+
+
+    def set_monomer_stat(self):
+        total_monomer_len = 0
+        for i in range(len(self.monomer_list)):
+            monomer_i = self.monomer_list[i] 
+            total_monomer_len = total_monomer_len + monomer_i.end - monomer_i.start
+        self.total_monomer_len = total_monomer_len
+
+        
     def comp_monomers(self):
 
         self.aln_data = []
@@ -51,7 +64,7 @@ class Monomers(object):
             for j in range(i + 1, len(self.monomer_list)):
                 monomer_i = self.monomer_list[i]
                 monomer_j = self.monomer_list[j]
-                aln = edlib.align(monomer_i.seq, momoner_j.seq)
+                aln = edlib.align(monomer_i.seq, monomer_j.seq)
                 match_ratio = 1 - float(aln["editDistance"]) / min(len(monomer_i.seq), len(monomer_j.seq))
                 # Skip if no alignment
                 if match_ratio >= 0.5:
@@ -129,7 +142,7 @@ class Monomers(object):
         start_list_clustered = []
         end_list_clustered = []
         for mono in monomer_list:
-            if mono.clustered_id is not None
+            if mono.clustered_id is not None:
                 start_list_clustered.append(mono.start)
                 end_list_clustered.append(mono.end)
 
@@ -187,7 +200,7 @@ class Monomer(object):
         self.orientation = orientation
         self.cluster_id = None
 
-class Cluster(ojbect):
+class Cluster(object):
 
     def __init__(self, cluster_id):
         self.cluster_id = cluster_id

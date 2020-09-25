@@ -6,38 +6,10 @@ import edlib
 import networkx as nx
 import numpy as np
 from . import utils
-from class import Monomers, 
-class Monomers(object):
-    
-    def __init__(self, origina_seq_len, original_seq_id):
-        self.original_seq_len = None
-        self.original_seq_id = NOne
-        self.aln_info = []
-        self.total_monomer_len = None
-        self.is_regular = False
-        self.inversion_detected = False
-        self.missing_monomer = False
-        self.monomer_list = []
+from .my_class import Monomers, Monomer 
 
 
-class Monomer(object):
-    
-    def __init__(self):
-        self.start = None
-        self.end = None
-        self.seq = None
-        self.orientation = None
-        self.cluster_id = None
-
-class Cluster(ojbect):
-
-    def __init__(self):
-        cluster_id = None
-        symbol = None
-        annotation = None
-
-
-def monomer_graph_analysis_check(input_file_name, monomer_file_name, output_prefix 
+def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_prefix, 
     mean_monomer_len, head_to_tail_dist, min_fasta_len, thres_list):
 
     header_items = ("RID",
@@ -84,19 +56,23 @@ def monomer_graph_analysis_check(input_file_name, monomer_file_name, output_pref
 
     # Print parameters
     print("Average monomer length: ", mean_monomer_len)
-    print("Max head-to-tail distance: ", head_to_tail)
+    print("Max head-to-tail distance: ", head_to_tail_dist)
     print("Shortest read length: ", min_fasta_len)
     print("Clustering thresolds: ", thres_list)
 
 
+    monomers_db = {}
+    seq_db = {}
     # IMPORT FASTA FILES #
     with open(input_fasta_file, 'r') as hin:
         for name, seq, qual in utils.readfq(hin):
             if len(seq) < min_fasta_len:
-                print(">%s\n%s" % (name, seq), file = too_short_read)
+                print(">%s\n%s" % (name, seq), file = too_short_reads_file)
                 continue
+            # monomers_db[name] = Monomers(name, len(seq))
             seq_db[name] = seq
 
+    
     # Load all monomers found in preads into monomer_db.
     # monomer_db[Read_ID] = [(start, end), sequence]
     with open(monomer_fasta_file, 'r') as hin:
@@ -107,38 +83,34 @@ def monomer_graph_analysis_check(input_file_name, monomer_file_name, output_pref
             # Skip if the read doesn't have any monomers.
             if rid not in seq_db:
                 continue
+            if rid not in monomers_db:
+                monomers_db[rid] = Monomers(rid, len(seq_db[rid]))
             rng = rng.split("_")
             rng = int(rng[0]), int(rng[1])
-            monomer_db.setdefault(rid, [])
-            monomer_db[rid].append((rng, seq, orientation))
+            monomers_db[rid].add_monomer(Monomer(rng[0], rng[1], seq, orientation))
+            # monomer_db.setdefault(rid, [])
+            # monomer_db[rid].append((rng, seq, orientation))
 
     print(len(seq_db), " sequences read." , "Reads with monomers:", len(monomer_db.keys()))
 
-
     # RUN OVER ALL READS THAT CONTAIN MONOMERS #
-    for rid, monomers in monomer_db.items():
-        aln_data = []
-        range_list = []
-        total_monomer_len = 0
-        # Align all monomers on the read to each other.
-        for i in range(len(monomers)):
-            for j in range(i + 1, len(monomers)):
-                t_seq = monomers[i][1]
-                q_seq = monomers[j][1]
-                aln = edlib.align(q_seq, t_seq)
-                match_ratio = 1 - float(aln["editDistance"]) / min(len(q_seq), len(t_seq))  
-                # Skip if no alignment
-                if match_ratio >= 0.5:
-                    # Store the alignment score for the monomer pair: (i, j, score)
-                    aln_data.append((i, j, match_ratio))
+    for rid, monomers in monomers_db.items():
 
+        # import pdb; pdb.set_trace()
+        monomers.sort_monomer()
+        monomers.set_monomer_stat()
+        monomers.comp_monomers()
+
+        """
             mono_range = monomers[i][0]
             # Add up app monomer ranges to calculate total monomer content in read
             total_monomer_len += (mono_range[1] - mono_range[0])
             # Store start-end coordinates of the monomer.
             range_list.append(mono_range[0])
             range_list.append(mono_range[1])
+        """
 
+        """
         is_regular = False
         inversion_detected = False
         missing_monomer = False
@@ -260,4 +232,4 @@ def monomer_graph_analysis_check(input_file_name, monomer_file_name, output_pref
                 missing_monomer = True
                 break           
         # END OF THE THRESHOLD LOOP #
-
+        """
