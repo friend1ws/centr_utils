@@ -17,6 +17,8 @@ class Monomers(object):
 
         self.aln_info = []
 
+        self.symbolic_pattern = None
+
         self.is_regular = False
         self.inversion_detected = False
         self.missing_monomer = False
@@ -100,7 +102,6 @@ class Monomers(object):
             else:
                 idt_out_clusters.append(idt)
 
-        import pdb; pdb.set_trace()
         # Run over all clusters
         for C in nx.connected_components(G):
             # Run over all nodes (monomers) in cluster.
@@ -112,13 +113,7 @@ class Monomers(object):
                 mono.cluster_id = cluster_id
                 clustered_monomer_count = clustered_monomer_count + 1
                 clustered_monomer_len = clustered_monomer_len + mono.end - mono.start
-                # s, e = mono.start, mono.end
-                # Store (monomer_start, end, cluster_index) in 'data.'
-                # Store (monomer_start, cluster_index) in 'data_c.'
-                # data.append((s, e, cluster_count))
-                # data_c.setdefault(cluster_count, [])
-                # data_c[cluster_count].append((s, cluster_count))
-                cluster_id = cluster_id + 1
+            cluster_id = cluster_id + 1
 
         self.cluster_count = cluster_id
         if len(idt_in_clusters) > 0: 
@@ -184,9 +179,7 @@ class Monomers(object):
         head_to_tail_intervals = []
         for i in range(1, len(start_list_clustered)):
             head_to_tail_intervals.append(start_list_clustered[i] - end_list_clustered[i - 1] - 1)
-        # head_to_tail_intervals = start_list_clustered[1:] - end_list_clustered[:-1] - 1
-  
-        # import pdb; pdb.set_trace() 
+
         if len(head_to_tail_intervals) > 0:
             self.min_head_to_tail = min(head_to_tail_intervals)
             self.max_head_to_tail = max(head_to_tail_intervals)
@@ -208,7 +201,6 @@ class Monomers(object):
             monomer_periods = []
             for i in range(1, len(cid2start[cid])):
                 monomer_periods.append(cid2start[cid][i] - cid2start[cid][i - 1])
-            # monomer_periods = cid2start[cid][1:] - cid2start[cid][:-1]
             all_monomer_periods.extend(monomer_periods)
 
         if len(all_monomer_periods) > 0:
@@ -227,12 +219,15 @@ class Monomers(object):
                 self.normalized_min_monomer_period = 0
                 self.normalized_max_monomer_period = 2
 
-        """
-        HOR_start = min(range_list)
-        HOR_end = max(range_list)
-        monomeric_fraction_in_HOR = \
-            1.0*total_monomer_len/(HOR_end - HOR_start)
-        """
+
+    def set_symbolic_pattern(self):
+        
+        symbolic_pattern = ''
+        for mono in self.monomer_list:
+            if mono.cluster_id is not None:
+                symbolic_pattern = symbolic_pattern + self.cluster_list[mono.cluster_id].symbol
+
+        self.symbolic_pattern = symbolic_pattern
 
 
 class Monomer(object):

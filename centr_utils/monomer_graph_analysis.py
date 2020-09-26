@@ -3,7 +3,7 @@
 import os
 import subprocess
 from . import utils
-from .my_class import Monomers, Monomer 
+from .monomer_class import Monomers, Monomer 
 
 
 def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_prefix, 
@@ -86,15 +86,19 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
     for rid, monomers in monomers_db.items():
 
         print(rid)
+
         monomers.sort_monomer()
         monomers.set_monomer_stat()
-        import pdb; pdb.set_trace()
         monomers.comp_monomers()
 
         for threshold in thres_list:
             monomers.cluster_monomers(threshold)
-            monomers.set_head_to_tail_stat()
-            monomers.set_monomer_period_stat()
+    
+            if monomers.cluster_count > 1:
+                monomers.set_head_to_tail_stat()
+                monomers.set_monomer_period_stat()
+                monomers.set_symbolic_pattern()
+
             monomers.state_check(head_to_tail_dist, mean_monomer_len)
 
             if monomers.inversion_detected == True:
@@ -112,8 +116,6 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
     
             stats_formatting = "%d\t%f\t%d\t%d\t%d\t%f\t%d\t%f\t%f\t%d\t%d\t%d\t%f\t%f\t%d\t%d\t%d"
 
-            import pdb; pdb.set_trace()
-
             stats = stats_formatting % \
                 (monomers.original_seq_len, threshold, len(monomers.monomer_list), 
                 monomers.clustered_monomer_count, monomers.isolated_monomer_count, 
@@ -130,7 +132,6 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
                 (monomers.original_seq_len, threshold, len(monomers.monomer_list),
                 monomers.clustered_monomer_count, len(monomers.monomer_list), ".", 
                 monomers.cluster_count, "-1 "*10)
-            symbolic_pattern = "N/A (No HOR)" 
 
         if monomers.inversion_detected:
             print(rid + " V " + stats, file = stats_file)
@@ -152,7 +153,7 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
             print(rid + " I " + stats, file = stats_file)
             print(fasta_tag, file = irregular_HORs_file)
             print(fasta_seq, file = irregular_HORs_file)
-            print(fasta_tag, file = irregular_HORs_file)
+            print(fasta_tag, file = irregular_pattern_file)
             print(monomers.symbolic_pattern, file = irregular_pattern_file)
         else:
             print(rid + " N " + stats, file = stats_file)
