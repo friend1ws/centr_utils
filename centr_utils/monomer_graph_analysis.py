@@ -2,9 +2,6 @@
 
 import os
 import subprocess
-import edlib
-import networkx as nx
-import numpy as np
 from . import utils
 from .my_class import Monomers, Monomer 
 
@@ -36,10 +33,6 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
     monomer_db = {}
 
     seq_db = {}
-    rc_map = dict(zip("ACGTacgtNn", "TGCAtgcaNn"))
-    stats_formatting = "".join((
-        "%d\t%f\t%d\t%d\t%d\t%f\t%d\t%f\t%f\t",
-        "%d\t%d\t%d\t%f\t%f\t%d\t%d\t%d\n"))
     # output_prefix = os.path.basename(pread_filename).split(".")[0]
     regular_HORs_file = open(output_prefix + "_regularHORs.fa", 'w')
     inversions_file = open(output_prefix + "_inversions.fa", 'w')
@@ -69,12 +62,10 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
             if len(seq) < min_fasta_len:
                 print(">%s\n%s" % (name, seq), file = too_short_reads_file)
                 continue
-            # monomers_db[name] = Monomers(name, len(seq))
             seq_db[name] = seq
 
     
     # Load all monomers found in preads into monomer_db.
-    # monomer_db[Read_ID] = [(start, end), sequence]
     with open(monomer_fasta_file, 'r') as hin:
         for name, seq, qual in utils.readfq(hin):
             # Parse the read tag.
@@ -88,46 +79,96 @@ def monomer_graph_analysis_check(input_fasta_file, monomer_fasta_file, output_pr
             rng = rng.split("_")
             rng = int(rng[0]), int(rng[1])
             monomers_db[rid].add_monomer(Monomer(rng[0], rng[1], seq, orientation))
-            # monomer_db.setdefault(rid, [])
-            # monomer_db[rid].append((rng, seq, orientation))
 
     print(len(seq_db), " sequences read." , "Reads with monomers:", len(monomer_db.keys()))
 
     # RUN OVER ALL READS THAT CONTAIN MONOMERS #
     for rid, monomers in monomers_db.items():
 
-        # import pdb; pdb.set_trace()
+        print(rid)
         monomers.sort_monomer()
         monomers.set_monomer_stat()
+        import pdb; pdb.set_trace()
         monomers.comp_monomers()
-        monomers.inversion_check()
 
         for threshold in thres_list:
             monomers.cluster_monomers(threshold)
             monomers.set_head_to_tail_stat()
             monomers.set_monomer_period_stat()
+            monomers.state_check(head_to_tail_dist, mean_monomer_len)
 
-            """
-            is_regular = False
-            inversion_detected = False
-            missing_monomer = False
-            """
-
-            # Exit the threshold loop if regularity, inversion or 
-            # missing monomer detected.
-            if inversion_detected:
+            if monomers.inversion_detected == True:
                 break
-            elif ((max_abs_head_to_tail <= allowed_max_head_to_tail) and
-                    (isolate_count == 0) and
-                    (normalized_max_monomer_period <= 1.05) and
-                    (normalized_min_monomer_period >= 0.95) and
-                    (not inversion_detected)):
-                # Mark as regular
-                is_regular = True
+            elif monomers.is_regular == True:
                 break
-            elif isolate_count == 0 and \
-              max_head_to_tail > 0.9 * avg_monomer_len:
-                missing_monomer = True
-                break           
+            elif monomers.missing_monomer == True:
+                break
         # END OF THE THRESHOLD LOOP #
-        """
+
+        if monomers.cluster_count > 1:
+            fasta_tag = ">%s___%d__%d_%d__HOR%d" % \
+                (rid, len(seq_db[rid]), monomers.HOR_start, monomers.HOR_end, int(monomers.cluster_count))
+            fasta_seq = seq_db[rid][monomers.HOR_start:monomers.HOR_end + 1]
+    
+            stats_formatting = "%d\t%f\t%d\t%d\t%d\t%f\t%d\t%f\t%f\t%d\t%d\t%d\t%f\t%f\t%d\t%d\t%d"
+
+            import pdb; pdb.set_trace()
+
+            stats = stats_formatting % \
+                (monomers.original_seq_len, threshold, len(monomers.monomer_list), 
+                monomers.clustered_monomer_count, monomers.isolated_monomer_count, 
+                float(monomers.clustered_monomer_len) / monomers.original_seq_len, 
+                monomers.cluster_count, monomers.mean_identity_within_clusters, monomers.mean_identity_between_clusters,
+                monomers.min_monomer_period, monomers.max_monomer_period, monomers.median_monomer_period,
+                monomers.normalized_min_monomer_period, monomers.normalized_max_monomer_period, 
+                monomers.min_head_to_tail, monomers.max_head_to_tail, monomers.median_head_to_tail)
+
+        else:
+            fasta_tag = ">" + rid
+            fasta_seq = seq_db[rid]
+            stats = "%d %f %d %e %d %s %e %s" % \
+                (monomers.original_seq_len, threshold, len(monomers.monomer_list),
+                monomers.clustered_monomer_count, len(monomers.monomer_list), ".", 
+                monomers.cluster_count, "-1 "*10)
+            symbolic_pattern = "N/A (No HOR)" 
+
+        if monomers.inversion_detected:
+            print(rid + " V " + stats, file = stats_file)
+            print(fasta_tag, file = inversions_file)
+            print(fasta_seq, file = inversions_file)
+            print(fasta_tag, file = inversions_pattern_file)
+            print(monomers.symbolic_pattern, file = inversions_pattern_file)
+        elif monomers.is_regular:
+            print(rid + " R " + stats, file = stats_file)
+            print(fasta_tag, file = regular_HORs_file)
+            print(fasta_seq, file = regular_HORs_file)
+            print(fasta_tag, file = regular_pattern_file)
+            print(monomers.symbolic_pattern, file = regular_pattern_file)
+        elif monomers.missing_monomer:
+            print(rid + " M " + stats, file = stats_file)
+            print(fasta_tag, file = missing_monomer_file)
+            print(fasta_seq, file = missing_monomer_file)
+        elif monomers.cluster_count > 1:
+            print(rid + " I " + stats, file = stats_file)
+            print(fasta_tag, file = irregular_HORs_file)
+            print(fasta_seq, file = irregular_HORs_file)
+            print(fasta_tag, file = irregular_HORs_file)
+            print(monomers.symbolic_pattern, file = irregular_pattern_file)
+        else:
+            print(rid + " N " + stats, file = stats_file)
+            print(fasta_tag, file = no_HOR_reads_file)
+            print(fasta_seq, file = no_HOR_reads_file)
+
+
+    regular_HORs_file.close()
+    irregular_HORs_file.close()
+    inversions_file.close()
+    no_HOR_reads_file.close()
+    too_short_reads_file.close()
+    regular_HORs_file.close()
+    missing_monomer_file.close()
+    regular_pattern_file.close()
+    irregular_pattern_file.close()
+    inversions_pattern_file.close()
+    stats_file.close()
+
