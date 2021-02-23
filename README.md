@@ -1,6 +1,6 @@
 # centr_utils
 Utilities for centromere analysis based on [alpha-CENTAURI](https://github.com/volkansevim/alpha-CENTAURI).
-This repository started to enhance my understanding on alpha satellite sequences.
+The development of this repository was started to enhance my understanding on alpha satellite sequences.
 But, I would like to extend it further.
 
 ## Dependency
